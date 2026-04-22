@@ -1,6 +1,6 @@
 #DAY 4 SQL BASICS
 
-#CONDITIONAL EXPRESIONS (IF ELSEIF CASE)
+#CONDITIONAL EXPRESSIONS (IF ELSEIF CASE)
 
 /*
     Actors ratings
@@ -9,7 +9,7 @@
     if avg_film_rate < 2 - 'poor acting',
     if avg_film_rate is between 2 and 2.5 - 'fair acting',
     if avg_film_rate is between 2.5 and 3.5 - 'good acting',
-    if avg_film_rate is above 3.5 - 'superb acting.
+    if avg_film_rate is above 3.5 - 'superb acting'.
     Call the column created this way: acting_level and use it in an analysis that calculates:
 
     number of occurrences in each group,
@@ -139,43 +139,161 @@ FROM trigger_exercise4_169.stock_part_1;
 DROP PROCEDURE IF EXISTS film_rental;
 
 DELIMITER $$
+
 CREATE PROCEDURE film_rental(IN p_film_id INT)
 BEGIN
+    DECLARE affected_rows INT;
     DECLARE stock_remaining INT;
+
     START TRANSACTION;
+
     UPDATE trigger_exercise4_169.stock_part_1
     SET stock = stock - 1
-    WHERE film_id = p_film_id AND stock > 0;
-    SELECT stock
-    INTO stock_remaining
-    FROM trigger_exercise4_169.stock_part_1
-    WHERE film_id = p_film_id;
+    WHERE film_id = p_film_id
+      AND stock > 0;
 
-    IF ROW_COUNT() > 0 THEN
+    SET affected_rows = ROW_COUNT();
+
+    IF affected_rows = 1 THEN
+        SELECT stock
+        INTO stock_remaining
+        FROM trigger_exercise4_169.stock_part_1
+        WHERE film_id = p_film_id;
+
         COMMIT;
+
         SELECT 1 AS result,
                stock_remaining;
     ELSE
         ROLLBACK;
+
         SELECT 0 AS result,
-               stock_remaining;
+               NULL AS stock_remaining;
     END IF;
-END;
-$$
+END$$
+
 DELIMITER ;
 
 SELECT
     *
 FROM trigger_exercise4_169.stock_part_1;
 
-CALL film_rental(50);
+CALL film_rental(7);
+
+/*
+    Film rentals 2
+    Write a procedure film_rental_store that tests if it is possible
+    to rent the film at the given store (stock_part_2 table).
+
+If possible (the film is available), the procedure should:
+
+return the information about the stock after renting the film
+and the information that the film is available to rent.
+Otherwise, the procedure should:
+
+return the information that the film is out of stock in the store,
+return the information whether the film can be rented from another store.
+If so, make a reservation there, that is: reduce the stock.
+What parameters does the procedure need to take to be executed?
+
+You may use this. Additionally, offer a different solution.
+
+Hint:
+
+The stock is updated by removing the appropriate record from the table;
+remember to start a transaction before DELETE.
+*/
+
+SELECT
+    *
+FROM trigger_exercise4_169.stock_part_2
+WHERE stock_part_2.store_id = 2;
+
+DROP PROCEDURE IF EXISTS film_rental_store;
+
+DELIMITER $$
+
+CREATE PROCEDURE film_rental_store(
+    IN p_film_id INT,
+    IN p_store_id INT
+)
+BEGIN
+    DECLARE v_other_store_id INT;
+    DECLARE v_stock_remaining INT;
+    DECLARE v_deleted_rows INT;
+
+    START TRANSACTION;
+
+    DELETE FROM trigger_exercise4_169.stock_part_2
+    WHERE film_id = p_film_id
+      AND store_id = p_store_id
+    LIMIT 1;
+
+    SET v_deleted_rows = ROW_COUNT();
+
+    IF v_deleted_rows = 1 THEN
+        SELECT COUNT(*)
+        INTO v_stock_remaining
+        FROM trigger_exercise4_169.stock_part_2
+        WHERE film_id = p_film_id
+          AND store_id = p_store_id;
+
+        COMMIT;
+
+        SELECT
+            1 AS result,
+            'Film is available in requested store and has been rented.' AS message,
+            p_store_id AS rented_from_store,
+            v_stock_remaining AS stock_remaining_in_store;
+    ELSE
+        SELECT MIN(store_id)
+        INTO v_other_store_id
+        FROM trigger_exercise4_169.stock_part_2
+        WHERE film_id = p_film_id
+          AND store_id <> p_store_id;
+
+        IF v_other_store_id IS NOT NULL THEN
+            DELETE FROM trigger_exercise4_169.stock_part_2
+            WHERE film_id = p_film_id
+              AND store_id = v_other_store_id
+            LIMIT 1;
+
+            SELECT COUNT(*)
+            INTO v_stock_remaining
+            FROM trigger_exercise4_169.stock_part_2
+            WHERE film_id = p_film_id
+              AND store_id = v_other_store_id;
+
+            COMMIT;
+
+            SELECT
+                2 AS result,
+                'Film is out of stock in requested store, but was reserved in another store.' AS message,
+                v_other_store_id AS reserved_from_store,
+                v_stock_remaining AS stock_remaining_in_other_store;
+        ELSE
+            ROLLBACK;
+
+            SELECT
+                0 AS result,
+                'Film is out of stock in requested store and unavailable in other stores.' AS message,
+                NULL AS reserved_from_store,
+                NULL AS stock_remaining_in_other_store;
+        END IF;
+    END IF;
+END$$
+
+DELIMITER ;
+
+CALL film_rental_store(2, 7);
 
 # LOOPS
 
 /*
     Multiplication
     Create a database procedure with a name of your choice that for the parameters:
-    base and number_of_elements returns the multiple of base equal to the number of elements.
+    base and number_of_elements returns the multiple of base equal to the
+    number of elements.
 
     For example:
 
@@ -184,10 +302,6 @@ CALL film_rental(50);
 
     -- Result:
     -- 2,4,6,8,10,12,14,16,18,20
-
-    Note:
-
-    In order to combine a string and a numeric type, you can take a hint from the following code snippet:
 */
 # 1 SOLUTION FOR LOOP
 
@@ -244,6 +358,74 @@ END; $$
 DELIMITER ;
 
 CALL multiplication(3, 5);
+
+/*
+    Randomization
+Write a procedure that first creates a table called randomizer, and then fills it with random values (a part of the procedure should be to specify how many values should be in the table). For example:
+
+CALL fill_randomizer(10)
+
+should populate the randomizer table with 10 random values from the 0-1 range.
+ */
+
+DROP PROCEDURE IF EXISTS fill_randomizer;
+
+DELIMITER $$
+
+CREATE PROCEDURE fill_randomizer(IN p_count INT)
+BEGIN
+    DECLARE i INT DEFAULT 1;
+
+    DROP TABLE IF EXISTS randomizer;
+
+    CREATE TABLE randomizer (
+        id INT,
+        value FLOAT
+    );
+
+    WHILE i <= p_count DO
+        INSERT INTO randomizer (id, value)
+        VALUES (i, RAND());
+
+        SET i = i + 1;
+    END WHILE;
+
+END $$
+
+DELIMITER ;
+
+CALL trigger_exercise4_169.fill_randomizer(10);
+
+SELECT
+    *
+FROM trigger_exercise4_169.randomizer;
+
+DROP PROCEDURE IF EXISTS fill_randomizer_2;
+
+DELIMITER $$
+CREATE PROCEDURE fill_randomizer_2(IN p2_count INT)
+BEGIN
+    DECLARE i INT DEFAULT 1;
+
+    DROP TABLE IF EXISTS randomizer_2;
+
+    CREATE TABLE randomizer_2(
+        id INT,
+        value FLOAT
+    );
+    WHILE i <= p2_count DO
+        INSERT INTO randomizer_2 (id, value)
+            VALUES( i, RAND());
+        SET i = i + 1;
+    END WHILE ;
+END $$
+DELIMITER ;
+
+CALL fill_randomizer_2(15);
+
+SELECT
+    *
+FROM trigger_exercise4_169.randomizer_2;
 
 #CURSOR
 /*
