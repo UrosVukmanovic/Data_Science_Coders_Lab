@@ -1,0 +1,1 @@
+print('Jelenovi pivo nelej')
