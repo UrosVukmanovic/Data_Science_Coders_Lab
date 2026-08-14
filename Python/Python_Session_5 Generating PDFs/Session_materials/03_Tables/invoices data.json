@@ -1,0 +1,45 @@
+{
+    "invoices": [
+        {
+            "date": "1.12.2020",
+            "buyer": {
+                "name": "Company XYZ",
+                "address": "Company XYZ address",
+                "nip": 7564984534,
+                "regon": 324353453
+            },
+            "items": [
+                {"name": "Rakes", "price": 4.5, "amount": 5},
+                {"name": "Watering can", "price": 15, "amount": 10},
+                {"name": "Spade", "price": 6, "amount": 5}
+            ]            
+        },
+        {
+            "date": "11.11.2020",
+            "buyer": {
+                "name": "Company ABC",
+                "address": "Company ABC address",
+                "nip": 8472058276,
+                "regon": 437598432
+            },
+            "items": [
+                {"name": "Doll", "price": 39.90, "amount": 6},
+                {"name": "Toy car", "price": 16.5, "amount": 4},
+                {"name": "Book", "price": 19.9, "amount": 10}
+            ]
+        },
+        {
+            "date": "15.12.2020",
+            "buyer": {
+                "name": "Company IJK",
+                "address": "Company IJK address",
+                "nip": 7473092210,
+                "regon": 687432543
+            },
+            "items": [
+                {"name": "Rifle", "price": 25, "amount": 10},
+                {"name": "BB ammo", "price": 2.5, "amount": 100}
+            ]
+        }
+    ]
+}
